@@ -75,3 +75,36 @@ def test_summarize_with_fake_client():
     client = SimpleNamespace(beta=SimpleNamespace(messages=SimpleNamespace(create=lambda **kw: response)))
     result = summarize({"visao_geral": {"taxa_resposta": 97.5}}, client=client)
     assert result.recomendacoes == ["Priorizar cobrança indevida"]
+
+
+def test_comparativo_against_segment_average(tmp_path):
+    ok = "SP;01/03/2026;Banco A;Bancos;A;G;P;S;Finalizada avaliada - Resolvida;5;2"
+    ruim = "SP;01/03/2026;Banco B;Bancos;A;G;P;S;Finalizada avaliada - Não Resolvida;1;6"
+    con = connect()
+    load_csv(con, write_csv(tmp_path, [ok] * 5 + [ruim] * 5))
+    rows = {r["empresa"]: r for r in ind.comparativo_segmento(con, "Bancos")}
+    assert rows["Banco A"]["indice_solucao"] == 100.0 and rows["Banco A"]["delta_solucao"] == 50.0
+    assert rows["Banco B"]["delta_solucao"] == -50.0
+    assert rows["Banco A"]["delta_nota"] == 2.0 and rows["Banco B"]["delta_tempo"] == 2.0
+
+
+def test_dashboard_has_one_section_per_segment_and_escapes(tmp_path):
+    from reclamacoes_radar.dashboard import render_dashboard
+
+    con = connect()
+    evil = "SP;01/03/2026;<script>x</script>;Bancos;A;G;P;S;Finalizada avaliada - Resolvida;5;2"
+    load_csv(con, write_csv(tmp_path, [evil] * 5))
+    html = render_dashboard(con)
+    assert html.startswith("<!doctype html>")
+    assert html.count("<section data-seg=") == 2  # "todos" + 1 segmento
+    assert "<script>x</script>" not in html and "&lt;script&gt;x&lt;/script&gt;" in html
+
+
+def test_cli_dashboard(tmp_path):
+    from reclamacoes_radar.cli import main
+
+    db, out = tmp_path / "r.duckdb", tmp_path / "d.html"
+    assert main(["carregar", str(SAMPLE), "--db", str(db)]) == 0
+    assert main(["dashboard", "--db", str(db), "--saida", str(out)]) == 0
+    html = out.read_text(encoding="utf-8")
+    assert "Empresas × média do segmento" in html and "Banco Alfa (fictício)" in html

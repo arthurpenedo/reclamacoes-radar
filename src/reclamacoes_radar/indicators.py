@@ -72,6 +72,45 @@ def visao_geral(con: duckdb.DuckDBPyConnection, segmento: str | None = None) -> 
     return _rows(con.execute(sql, params))[0]
 
 
+def comparativo_segmento(con: duckdb.DuckDBPyConnection, segmento: str) -> list[dict]:
+    """Cada empresa do segmento contra a média do próprio segmento (pontos percentuais / dias / nota).
+
+    A "média do segmento" é calculada sobre todas as reclamações do segmento, inclusive de empresas
+    abaixo do mínimo — é o patamar que o consumidor encontra no mercado.
+    """
+    sql = f"""
+        WITH base AS (
+            SELECT nome_fantasia,
+                   CASE WHEN respondida THEN 1 ELSE 0 END AS resp,
+                   CASE WHEN situacao = '{RESOLVIDA}' THEN 1 WHEN situacao LIKE 'Finalizada avaliada%' THEN 0 END AS resolvida,
+                   nota_do_consumidor AS nota,
+                   tempo_resposta AS tempo
+            FROM reclamacoes WHERE segmento_de_mercado = ?
+        ),
+        seg AS (
+            SELECT 100.0 * avg(resp) AS taxa_resposta, 100.0 * avg(resolvida) AS indice_solucao,
+                   avg(nota) AS nota_media, avg(tempo) AS tempo_medio_dias
+            FROM base
+        ),
+        emp AS (
+            SELECT nome_fantasia AS empresa, count(*) AS reclamacoes,
+                   100.0 * avg(resp) AS taxa_resposta, 100.0 * avg(resolvida) AS indice_solucao,
+                   avg(nota) AS nota_media, avg(tempo) AS tempo_medio_dias
+            FROM base GROUP BY nome_fantasia HAVING count(*) >= {MIN_RECLAMACOES}
+        )
+        SELECT emp.empresa, emp.reclamacoes,
+               round(emp.indice_solucao, 1) AS indice_solucao,
+               round(emp.indice_solucao - seg.indice_solucao, 1) AS delta_solucao,
+               round(emp.nota_media, 2) AS nota_media,
+               round(emp.nota_media - seg.nota_media, 2) AS delta_nota,
+               round(emp.tempo_medio_dias, 1) AS tempo_medio_dias,
+               round(emp.tempo_medio_dias - seg.tempo_medio_dias, 1) AS delta_tempo
+        FROM emp, seg
+        ORDER BY emp.reclamacoes DESC
+    """
+    return _rows(con.execute(sql, [segmento]))
+
+
 def segmentos(con: duckdb.DuckDBPyConnection) -> list[str]:
     return [r[0] for r in con.execute(
         "SELECT segmento_de_mercado FROM reclamacoes GROUP BY 1 ORDER BY count(*) DESC").fetchall()]

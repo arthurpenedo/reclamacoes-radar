@@ -1,6 +1,7 @@
 # reclamacoes-radar
 
 [![CI](https://github.com/arthurpenedo/reclamacoes-radar/actions/workflows/ci.yml/badge.svg)](https://github.com/arthurpenedo/reclamacoes-radar/actions/workflows/ci.yml)
+[![Dashboard](https://github.com/arthurpenedo/reclamacoes-radar/actions/workflows/dashboard.yml/badge.svg)](https://arthurpenedo.github.io/reclamacoes-radar/)
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
 ![DuckDB](https://img.shields.io/badge/DuckDB-SQL-yellow)
 ![License](https://img.shields.io/badge/license-MIT-green)
@@ -16,9 +17,14 @@ O `reclamacoes-radar` resolve o caminho inteiro:
 1. **Ingestão robusta:** normaliza os nomes das colunas oficiais, converte datas e tipos e valida o esquema.
 2. **Indicadores em SQL puro no DuckDB,** analítico e rápido, sem servidor.
 3. **Relatório em Markdown** por segmento de mercado.
-4. **Resumo executivo com Claude,** com uma verificação que **rejeita qualquer número citado que não esteja nos dados**.
+4. **Dashboard HTML** com cada empresa comparada à média do próprio segmento.
+5. **Resumo executivo com Claude,** com uma verificação que **rejeita qualquer número citado que não esteja nos dados**.
 
 ## Demo (amostra sintética)
+
+**Dashboard ao vivo:** [arthurpenedo.github.io/reclamacoes-radar](https://arthurpenedo.github.io/reclamacoes-radar/) (gerado pelo CI a cada push; o segmento escolhido fica na URL, ex.: [`#s0`](https://arthurpenedo.github.io/reclamacoes-radar/#s0)).
+
+![Dashboard do segmento de bancos: empresas contra a média do segmento](docs/dashboard.png)
 
 ```text
 $ reclamacoes-radar carregar data/amostra_sintetica.csv --db radar.duckdb
@@ -39,6 +45,12 @@ $ reclamacoes-radar relatorio --db radar.duckdb --segmento "Bancos, Financeiras 
 | Dificuldade de contato / acesso a outros canais | 59 | 24.9 |
 | Cobrança indevida / abusiva | 56 | 23.6 |
 
+```text
+$ reclamacoes-radar dashboard --db radar.duckdb --saida dashboard.html
+```
+
+Um único arquivo HTML, sem servidor e sem dependências, com modo escuro e layout para celular. Na visão por segmento, cada empresa aparece contra a média do segmento: índice de solução em pontos percentuais, nota e tempo de resposta. Verde é melhor que a média e vermelho, pior (tempo menor conta como melhor).
+
 > As empresas da amostra são **fictícias**. A amostra tem o mesmo layout do arquivo oficial e é gerada por `data/gerar_amostra.py`.
 
 ## Arquitetura
@@ -47,6 +59,7 @@ $ reclamacoes-radar relatorio --db radar.duckdb --segmento "Bancos, Financeiras 
 CSV oficial (;)  ──► ingest.py ──► DuckDB: tabela `reclamacoes` (tipada)
                                           │
                      indicators.py (SQL) ◄┘ ──► report.py ──► Markdown
+                                          ├──► dashboard.py ──► HTML (GitHub Pages)
                                           │
                                           └──► insights.py ──► Claude ──► check_numbers() ──► resumo executivo
 ```
@@ -65,6 +78,7 @@ pip install -e ".[dev]"
 
 reclamacoes-radar carregar data/amostra_sintetica.csv --db radar.duckdb
 reclamacoes-radar relatorio --db radar.duckdb
+reclamacoes-radar dashboard --db radar.duckdb --saida dashboard.html
 reclamacoes-radar resumo --db radar.duckdb        # precisa de ANTHROPIC_API_KEY
 pytest -q
 ```
@@ -81,8 +95,8 @@ reclamacoes-radar carregar data/raw/2026-08.csv --db radar.duckdb --encoding lat
 ## Próximos passos
 
 - [ ] Download automático dos meses pela API do dados.gov.br
-- [ ] Dashboard (Streamlit) com filtro por empresa e segmento
-- [ ] Comparativo empresa × média do segmento
+- [x] Dashboard HTML com filtro por segmento, publicado no GitHub Pages
+- [x] Comparativo empresa × média do segmento
 - [ ] Classificação de temas emergentes com LLM em lote (Batches API)
 
 ---

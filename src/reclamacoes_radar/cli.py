@@ -3,6 +3,7 @@
     reclamacoes-radar carregar data/amostra_sintetica.csv --db radar.duckdb
     reclamacoes-radar relatorio --db radar.duckdb [--segmento "Bancos, Financeiras e Administradoras de Cartão"]
     reclamacoes-radar resumo --db radar.duckdb [--segmento ...]      # resumo executivo com Claude
+    reclamacoes-radar dashboard --db radar.duckdb --saida dashboard.html
 """
 
 import argparse
@@ -12,6 +13,7 @@ from pathlib import Path
 
 from . import indicators as ind
 from .ingest import connect, load_csv
+from .dashboard import render_dashboard
 from .report import build_report
 
 
@@ -31,12 +33,21 @@ def main(argv: list[str] | None = None) -> int:
         p.add_argument("--db", type=Path, default=Path("radar.duckdb"))
         p.add_argument("--segmento")
 
+    p_dash = sub.add_parser("dashboard", help="gera dashboard HTML com todos os segmentos")
+    p_dash.add_argument("--db", type=Path, default=Path("radar.duckdb"))
+    p_dash.add_argument("--saida", type=Path, default=Path("dashboard.html"))
+    p_dash.add_argument("--fonte", help="texto sobre a origem dos dados, exibido no cabeçalho")
+
     args = parser.parse_args(argv)
     con = connect(args.db)
 
     if args.cmd == "carregar":
         total = load_csv(con, args.csv, encoding=args.encoding)
         print(f"{total} reclamações na base {args.db}")
+    elif args.cmd == "dashboard":
+        kwargs = {"fonte": args.fonte} if args.fonte else {}
+        args.saida.write_text(render_dashboard(con, **kwargs), encoding="utf-8")
+        print(f"Dashboard salvo em {args.saida}")
     elif args.cmd == "relatorio":
         print(build_report(con, args.segmento))
     else:
