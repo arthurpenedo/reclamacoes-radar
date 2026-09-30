@@ -1,0 +1,13 @@
+{
+  "aprovado_pela_checagem": true,
+  "achados": [
+    "A Telecom Gama (fictícia) lidera o volume, com 125 reclamações, e tem o pior índice de solução (48,1) e a menor nota média (3,13), com tempo médio de 7,8 dias.",
+    "Cobrança indevida / abusiva é o principal problema: 110 reclamações (18,3%). Em seguida vêm dificuldade / atraso no cancelamento, com 69 (11,5%), e cobrança por serviço/produto não contratado, com 67 (11,2%).",
+    "A taxa de resposta geral é alta (96,2%), mas não garante solução. A Cartões Zeta (fictícia) tem o maior tempo médio (8,7 dias), a menor taxa de resposta (92,1%) e índice de solução de 53,8. Já a Fintech Beta (fictícia) resolve em 3,3 dias, com índice de solução de 80,0."
+  ],
+  "recomendacoes": [
+    "Criar uma força-tarefa para revisar cobranças indevidas e não reconhecidas, com estorno ágil e checagem prévia de faturas.",
+    "Simplificar o cancelamento: oferecer canal direto, confirmação imediata e prazo máximo definido para concluir o pedido.",
+    "Priorizar Telecom Gama e Cartões Zeta na redução do tempo de resposta e na melhora da solução, usando como referência as práticas da Fintech Beta e da Loja Delta (índices de solução de 80,0 e 82,7)."
+  ]
+}

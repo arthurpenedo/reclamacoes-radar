@@ -53,6 +53,18 @@ Um único arquivo HTML, sem servidor e sem dependências, com modo escuro e layo
 
 > As empresas da amostra são **fictícias**. A amostra tem o mesmo layout do arquivo oficial e é gerada por `data/gerar_amostra.py`.
 
+## Com o Claude de verdade: a trava de números funcionou
+
+O resumo executivo rodou de verdade (30/09/2026, `claude-opus-5-5`, amostra sintética). **Na primeira execução, a checagem de números barrou o resumo**: ele citava "177", que não existe nos indicadores. Era a soma de duas categorias de cobrança (110 + 67), um número calculado pelo modelo, o que o prompt proíbe. Sem a checagem, esse número iria para a diretoria.
+
+Duas correções saíram disso: o prompt agora proíbe somar ou agrupar categorias, e o erro (`NumerosInventados`) guarda o resumo rejeitado para auditoria. Na segunda execução, o resumo passou — completo em [`docs/exemplo-resumo.json`](docs/exemplo-resumo.json):
+
+> - Cobrança indevida / abusiva é o principal problema: 110 reclamações (18,3%). Em seguida vêm dificuldade / atraso no cancelamento, com 69 (11,5%), e cobrança por serviço/produto não contratado, com 67 (11,2%).
+> - A taxa de resposta geral é alta (96,2%), mas não garante solução. [...]
+> - **Recomendação:** priorizar Telecom Gama e Cartões Zeta na redução do tempo de resposta e na melhora da solução, usando como referência as práticas da Fintech Beta e da Loja Delta (índices de solução de 80,0 e 82,7).
+
+Custo medido: **US$ 0,016 por resumo** (≈ 1.400 tokens de entrada, 500 de saída).
+
 ## Arquitetura
 
 ```

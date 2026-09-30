@@ -6,7 +6,7 @@ import pytest
 
 from reclamacoes_radar import indicators as ind
 from reclamacoes_radar.ingest import connect, load_csv, snake
-from reclamacoes_radar.insights import ExecutiveSummary, check_numbers, summarize
+from reclamacoes_radar.insights import ExecutiveSummary, NumerosInventados, check_numbers, summarize
 from reclamacoes_radar.report import build_report
 
 SAMPLE = Path(__file__).parent.parent / "data" / "amostra_sintetica.csv"
@@ -75,6 +75,19 @@ def test_summarize_with_fake_client():
     client = SimpleNamespace(beta=SimpleNamespace(messages=SimpleNamespace(create=lambda **kw: response)))
     result = summarize({"visao_geral": {"taxa_resposta": 97.5}}, client=client)
     assert result.recomendacoes == ["Priorizar cobrança indevida"]
+
+
+def test_summarize_rejects_summed_categories_and_keeps_text():
+    # Caso real de 30/09/2026: o modelo somou duas categorias de cobrança (110 + 67 = 177).
+    payload = {"achados": ["Cobranças somam 177 reclamações"], "recomendacoes": ["Revisar cobranças"]}
+    response = SimpleNamespace(stop_reason="end_turn", content=[SimpleNamespace(type="text", text=json.dumps(payload))])
+    client = SimpleNamespace(beta=SimpleNamespace(messages=SimpleNamespace(create=lambda **kw: response)))
+    dados = {"top_problemas": [{"problema": "Cobrança indevida", "reclamacoes": 110},
+                               {"problema": "Cobrança não contratada", "reclamacoes": 67}]}
+    with pytest.raises(NumerosInventados) as erro:
+        summarize(dados, client=client)
+    assert erro.value.invented == ["177"]
+    assert erro.value.summary.achados == ["Cobranças somam 177 reclamações"]
 
 
 def test_comparativo_against_segment_average(tmp_path):

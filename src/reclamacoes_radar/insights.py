@@ -18,6 +18,7 @@ escreva um resumo executivo em português do Brasil para a diretoria de atendime
 
 Regras:
 - Use apenas números presentes nos dados. Não calcule novos percentuais nem estime valores.
+- Não some nem agrupe categorias (ex.: dois tipos de cobrança): cite cada número como aparece nos dados.
 - Destaque no máximo 3 achados e 3 recomendações práticas.
 - Seja direto: frases curtas, sem jargão."""
 
@@ -31,6 +32,14 @@ class ExecutiveSummary(BaseModel):
 
 class RefusalError(RuntimeError):
     pass
+
+
+class NumerosInventados(ValueError):
+    """O resumo citou números fora dos dados. Guarda o resumo rejeitado para auditoria."""
+
+    def __init__(self, invented: list[str], summary: ExecutiveSummary):
+        super().__init__(f"O resumo citou números que não estão nos dados: {invented}")
+        self.invented, self.summary = invented, summary
 
 
 def summarize(indicadores: dict, client: anthropic.Anthropic | None = None) -> ExecutiveSummary:
@@ -54,7 +63,7 @@ def summarize(indicadores: dict, client: anthropic.Anthropic | None = None) -> E
     summary = ExecutiveSummary.model_validate(json.loads(text))
     invented = check_numbers(summary, dados)
     if invented:
-        raise ValueError(f"O resumo citou números que não estão nos dados: {invented}")
+        raise NumerosInventados(invented, summary)
     return summary
 
 
