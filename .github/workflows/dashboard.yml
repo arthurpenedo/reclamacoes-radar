@@ -28,6 +28,15 @@ jobs:
           mkdir -p site
           reclamacoes-radar carregar data/amostra_sintetica.csv --db radar.duckdb
           reclamacoes-radar dashboard --db radar.duckdb --saida site/index.html
+      - name: Resumo executivo com modelo aberto (Ollama, qwen2.5:3b) + trava de números
+        # Opcional: se falhar, fica o dashboard sem resumo gerado no passo anterior.
+        continue-on-error: true
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          ollama serve > ollama.log 2>&1 &
+          for i in $(seq 1 30); do curl -s localhost:11434/api/tags > /dev/null && break; sleep 2; done
+          ollama pull qwen2.5:3b
+          reclamacoes-radar dashboard --db radar.duckdb --saida site/index.html --resumo ollama
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site

@@ -90,6 +90,49 @@ def test_summarize_rejects_summed_categories_and_keeps_text():
     assert erro.value.summary.achados == ["Cobranças somam 177 reclamações"]
 
 
+def _fake_ollama(*contents):
+    respostas, calls = iter(contents), []
+
+    def post(url, payload):
+        calls.append(payload)
+        return {"message": {"content": json.dumps(next(respostas))}}
+
+    return post, calls
+
+
+def test_ollama_retries_when_numbers_are_invented():
+    from reclamacoes_radar.insights import summarize_ollama
+
+    ruim = {"achados": ["Cobranças somam 177"], "recomendacoes": ["Revisar"]}
+    bom = {"achados": ["Cobrança indevida: 110"], "recomendacoes": ["Revisar"]}
+    post, calls = _fake_ollama(ruim, bom)
+    dados = {"top_problemas": [{"reclamacoes": 110}, {"reclamacoes": 67}]}
+    result = summarize_ollama(dados, post=post)
+    assert result.achados == ["Cobrança indevida: 110"] and len(calls) == 2
+    assert "177" in calls[1]["messages"][-1]["content"]  # a rejeição volta para o modelo como feedback
+
+
+def test_ollama_gives_up_after_attempts_and_keeps_last_summary():
+    from reclamacoes_radar.insights import summarize_ollama
+
+    ruim = {"achados": ["Há 999 casos"], "recomendacoes": []}
+    post, calls = _fake_ollama(ruim, ruim, ruim)
+    with pytest.raises(NumerosInventados) as erro:
+        summarize_ollama({"a": 1}, post=post)
+    assert erro.value.invented == ["999"] and len(calls) == 3
+
+
+def test_dashboard_renders_summary_and_blocked_notice(tmp_path):
+    from reclamacoes_radar.dashboard import render_dashboard
+
+    con = connect()
+    load_csv(con, write_csv(tmp_path, ["SP;01/03/2026;Banco A;Bancos;A;G;P;S;Finalizada avaliada - Resolvida;5;2"] * 5))
+    resumos = {"todos": ExecutiveSummary(achados=["Achado <b>"], recomendacoes=["Agir"]), "s0": "Resumo barrado"}
+    html = render_dashboard(con, resumos=resumos)
+    assert "Achado &lt;b&gt;" in html and "Resumo barrado" in html
+    assert "Resumo executivo" not in render_dashboard(con)
+
+
 def test_comparativo_against_segment_average(tmp_path):
     ok = "SP;01/03/2026;Banco A;Bancos;A;G;P;S;Finalizada avaliada - Resolvida;5;2"
     ruim = "SP;01/03/2026;Banco B;Bancos;A;G;P;S;Finalizada avaliada - Não Resolvida;1;6"

@@ -65,6 +65,14 @@ Duas correções saíram disso: o prompt agora proíbe somar ou agrupar categori
 
 Custo medido: **US$ 0,016 por resumo** (≈ 1.400 tokens de entrada, 500 de saída).
 
+## Resumo com modelo aberto (grátis) no dashboard
+
+`reclamacoes-radar resumo --modelo ollama` e `dashboard --resumo ollama` usam um modelo aberto (padrão `qwen2.5:3b`, via [Ollama](https://ollama.com)), sem chave de API e sem custo. O workflow `dashboard.yml` roda o Ollama no runner e publica um resumo por segmento no Pages.
+
+Modelo pequeno erra mais número, então a trava é mais rígida: se o resumo cita número fora dos indicadores, a rejeição volta ao modelo como feedback e ele tenta de novo (até 3 vezes). Se nenhuma tentativa passa, o dashboard mostra "resumo barrado pela trava" no lugar do texto, nunca um número inventado. Se o passo do Ollama falhar no CI, o dashboard sai sem resumo.
+
+Limites honestos: os testes usam um modelo falso; a taxa de aprovação do qwen2.5:3b na trava ainda não foi medida (rodar `resumo --modelo ollama` por segmento e contar).
+
 ## Arquitetura
 
 ```

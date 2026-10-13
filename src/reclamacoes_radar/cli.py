@@ -32,8 +32,12 @@ def main(argv: list[str] | None = None) -> int:
         p = sub.add_parser(name)
         p.add_argument("--db", type=Path, default=Path("radar.duckdb"))
         p.add_argument("--segmento")
+        if name == "resumo":
+            p.add_argument("--modelo", choices=["claude", "ollama"], default="claude",
+                           help="claude (paga, precisa de chave) ou ollama (modelo aberto, grátis)")
 
     p_dash = sub.add_parser("dashboard", help="gera dashboard HTML com todos os segmentos")
+    p_dash.add_argument("--resumo", choices=["ollama"], help="inclui o resumo executivo de cada segmento (modelo aberto)")
     p_dash.add_argument("--db", type=Path, default=Path("radar.duckdb"))
     p_dash.add_argument("--saida", type=Path, default=Path("dashboard.html"))
     p_dash.add_argument("--fonte", help="texto sobre a origem dos dados, exibido no cabeçalho")
@@ -46,20 +50,39 @@ def main(argv: list[str] | None = None) -> int:
         print(f"{total} reclamações na base {args.db}")
     elif args.cmd == "dashboard":
         kwargs = {"fonte": args.fonte} if args.fonte else {}
+        if args.resumo:
+            kwargs["resumos"] = _resumos_ollama(con)
         args.saida.write_text(render_dashboard(con, **kwargs), encoding="utf-8")
         print(f"Dashboard salvo em {args.saida}")
     elif args.cmd == "relatorio":
         print(build_report(con, args.segmento))
     else:
-        from .insights import summarize
+        from .insights import summarize, summarize_ollama
 
-        dados = {
-            "visao_geral": ind.visao_geral(con, args.segmento),
-            "ranking_empresas": ind.ranking_empresas(con, args.segmento),
-            "top_problemas": ind.top_problemas(con, args.segmento),
-        }
-        print(json.dumps(summarize(dados).model_dump(), ensure_ascii=False, indent=2))
+        resumir = summarize_ollama if args.modelo == "ollama" else summarize
+        print(json.dumps(resumir(_dados(con, args.segmento)).model_dump(), ensure_ascii=False, indent=2))
     return 0
+
+
+def _dados(con, segmento: str | None) -> dict:
+    return {
+        "visao_geral": ind.visao_geral(con, segmento),
+        "ranking_empresas": ind.ranking_empresas(con, segmento),
+        "top_problemas": ind.top_problemas(con, segmento),
+    }
+
+
+def _resumos_ollama(con) -> dict:
+    """Um resumo por seção do dashboard. Resumo barrado pela trava vira aviso, nunca número inventado."""
+    from .insights import NumerosInventados, summarize_ollama
+
+    resumos = {}
+    for key, segmento in [("todos", None), *((f"s{i}", s) for i, s in enumerate(ind.segmentos(con)))]:
+        try:
+            resumos[key] = summarize_ollama(_dados(con, segmento))
+        except NumerosInventados as erro:
+            resumos[key] = f"Resumo barrado pela trava de números (citou {', '.join(erro.invented)}, fora dos dados)."
+    return resumos
 
 
 if __name__ == "__main__":

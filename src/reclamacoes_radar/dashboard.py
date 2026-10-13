@@ -126,12 +126,27 @@ def _ranking(rows: list[dict]) -> str:
             f'<tbody>{body}</tbody></table></div>')
 
 
-def _section(con: duckdb.DuckDBPyConnection, key: str, segmento: str | None, hidden: bool) -> str:
+def _resumo(resumo) -> str:
+    """Card do resumo executivo. `resumo` é um ExecutiveSummary, um texto de erro (str) ou None (sem card)."""
+    if resumo is None:
+        return ""
+    if isinstance(resumo, str):
+        return f'<div class="card wide"><h2>Resumo executivo (IA)</h2><p class="muted">{escape(resumo)}</p></div>'
+    lis = lambda items: "".join(f"<li>{escape(i)}</li>" for i in items)  # noqa: E731
+    return ('<div class="card wide"><h2>Resumo executivo (IA aberta)</h2>'
+            f'<h3 class="muted" style="font-size:13px;margin:8px 0 0">Achados</h3><ul>{lis(resumo.achados)}</ul>'
+            f'<h3 class="muted" style="font-size:13px;margin:8px 0 0">Recomendações</h3><ul>{lis(resumo.recomendacoes)}</ul>'
+            '<p class="muted" style="font-size:13px;margin:8px 0 0">Gerado por modelo aberto; todo número citado foi '
+            'conferido contra os indicadores SQL (trava de números).</p></div>')
+
+
+def _section(con: duckdb.DuckDBPyConnection, key: str, segmento: str | None, hidden: bool, resumo=None) -> str:
     empresas = (f'<h2>Empresas × média do segmento</h2>{_comparativo(ind.comparativo_segmento(con, segmento))}'
                 if segmento else f'<h2>Empresas com mais reclamações</h2>{_ranking(ind.ranking_empresas(con))}')
     return f"""<section data-seg="{escape(key)}"{' hidden' if hidden else ''}>
 {_kpis(ind.visao_geral(con, segmento))}
 <div class="grid">
+  {_resumo(resumo)}
   <div class="card wide">{empresas}</div>
   <div class="card"><h2>Evolução mensal</h2>{_mensal(ind.evolucao_mensal(con, segmento))}</div>
   <div class="card"><h2>Problemas mais frequentes</h2>{_problemas(ind.top_problemas(con, segmento))}</div>
@@ -139,12 +154,15 @@ def _section(con: duckdb.DuckDBPyConnection, key: str, segmento: str | None, hid
 
 
 def render_dashboard(con: duckdb.DuckDBPyConnection, titulo: str = "Radar de reclamações",
-                     fonte: str = "Amostra sintética no layout oficial do consumidor.gov.br (empresas fictícias)") -> str:
+                     fonte: str = "Amostra sintética no layout oficial do consumidor.gov.br (empresas fictícias)",
+                     resumos: dict | None = None) -> str:
+    """`resumos` opcional: chave da seção ("todos", "s0", ...) → ExecutiveSummary ou texto de erro."""
+    resumos = resumos or {}
     segs = ind.segmentos(con)
     options = ['<option value="todos">Todos os segmentos</option>'] + [
         f'<option value="s{i}">{escape(s)}</option>' for i, s in enumerate(segs)]
-    sections = [_section(con, "todos", None, hidden=False)] + [
-        _section(con, f"s{i}", s, hidden=True) for i, s in enumerate(segs)]
+    sections = [_section(con, "todos", None, hidden=False, resumo=resumos.get("todos"))] + [
+        _section(con, f"s{i}", s, hidden=True, resumo=resumos.get(f"s{i}")) for i, s in enumerate(segs)]
     gerado = datetime.now().strftime("%d/%m/%Y %H:%M")
     return f"""<!doctype html>
 <html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
