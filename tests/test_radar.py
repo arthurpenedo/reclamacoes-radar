@@ -3,10 +3,14 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-
 from reclamacoes_radar import indicators as ind
 from reclamacoes_radar.ingest import connect, load_csv, snake
-from reclamacoes_radar.insights import ExecutiveSummary, NumerosInventados, check_numbers, summarize
+from reclamacoes_radar.insights import (
+    ExecutiveSummary,
+    NumerosInventados,
+    check_numbers,
+    summarize,
+)
 from reclamacoes_radar.report import build_report
 
 SAMPLE = Path(__file__).parent.parent / "data" / "amostra_sintetica.csv"

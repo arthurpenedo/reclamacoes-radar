@@ -12,8 +12,8 @@ import sys
 from pathlib import Path
 
 from . import indicators as ind
-from .ingest import connect, load_csv
 from .dashboard import render_dashboard
+from .ingest import connect, load_csv
 from .report import build_report
 
 
