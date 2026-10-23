@@ -3,6 +3,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+
 from reclamacoes_radar import indicators as ind
 from reclamacoes_radar.ingest import connect, load_csv, snake
 from reclamacoes_radar.insights import (
