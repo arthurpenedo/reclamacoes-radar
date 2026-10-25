@@ -9,6 +9,7 @@ from reclamacoes_radar.ingest import connect, load_csv, snake
 from reclamacoes_radar.insights import (
     ExecutiveSummary,
     NumerosInventados,
+    check_comparisons,
     check_numbers,
     summarize,
 )
@@ -169,3 +170,32 @@ def test_cli_dashboard(tmp_path):
     assert main(["dashboard", "--db", str(db), "--saida", str(out)]) == 0
     html = out.read_text(encoding="utf-8")
     assert "Empresas × média do segmento" in html and "Banco Alfa (fictício)" in html
+
+
+DADOS_RANKING = {"visao_geral": {"reclamacoes": 600},
+                 "top_problemas": [{"problema": "Cobrança", "reclamacoes": 110}, {"problema": "Entrega", "reclamacoes": 67}]}
+
+
+def test_check_comparisons_flags_wrong_superlative():
+    # Achado de 19/10: o número existe nos dados, mas não é o maior.
+    ruim = ExecutiveSummary(achados=["Entrega é o maior problema, com 67 reclamações."], recomendacoes=[])
+    assert check_comparisons(ruim, DADOS_RANKING) == ["maior com 67"]
+    bom = ExecutiveSummary(achados=["Cobrança é o maior problema, com 110 reclamações."], recomendacoes=[])
+    assert check_comparisons(bom, DADOS_RANKING) == []
+
+
+def test_check_comparisons_checks_menor_and_ignores_lone_indicators():
+    ruim = ExecutiveSummary(achados=["O menor volume é cobrança, 110."], recomendacoes=[])
+    assert check_comparisons(ruim, DADOS_RANKING) == ["menor com 110"]
+    solto = ExecutiveSummary(achados=["O maior volume geral é de 600 reclamações."], recomendacoes=[])
+    assert check_comparisons(solto, DADOS_RANKING) == []
+
+
+def test_ollama_retries_when_superlative_is_wrong():
+    from reclamacoes_radar.insights import summarize_ollama
+
+    ruim = {"achados": ["Entrega é o maior problema, com 67."], "recomendacoes": []}
+    bom = {"achados": ["Cobrança é o maior problema, com 110."], "recomendacoes": []}
+    post, calls = _fake_ollama(ruim, bom)
+    result = summarize_ollama(DADOS_RANKING, post=post)
+    assert result.achados == bom["achados"] and "maior com 67" in calls[1]["messages"][-1]["content"]

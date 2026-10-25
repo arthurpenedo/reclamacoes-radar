@@ -1,7 +1,8 @@
 """Camada opcional de IA: transforma os indicadores em um resumo executivo.
 
 O modelo recebe SOMENTE os números já calculados em SQL. Para evitar números inventados,
-`check_numbers` confere se todo número citado no resumo existe nos dados de entrada.
+`check_numbers` confere se todo número citado no resumo existe nos dados de entrada e
+`check_comparisons` confere se "maior"/"menor" bate com o ranking dos dados.
 """
 
 import json
@@ -71,12 +72,18 @@ def summarize_ollama(indicadores: dict, model: str = OLLAMA_MODEL, url: str = OL
         text = response["message"]["content"]
         summary = ExecutiveSummary.model_validate(json.loads(text))
         invented = check_numbers(summary, dados)
-        if not invented:
+        erradas = check_comparisons(summary, indicadores)
+        if not invented and not erradas:
             return summary
-        messages += [{"role": "assistant", "content": text},
-                     {"role": "user", "content": f"Os números {invented} não estão nos dados. Reescreva sem eles, "
-                                                 "citando apenas números exatamente como aparecem nos indicadores."}]
-    raise NumerosInventados(invented, summary)
+        feedback = []
+        if invented:
+            feedback.append(f"Os números {invented} não estão nos dados. Reescreva sem eles, "
+                            "citando apenas números exatamente como aparecem nos indicadores.")
+        if erradas:
+            feedback.append(f"Comparações que os dados não confirmam: {erradas}. Só diga maior/menor "
+                            "quando o número for de fato o maior/menor da lista.")
+        messages += [{"role": "assistant", "content": text}, {"role": "user", "content": " ".join(feedback)}]
+    raise NumerosInventados(invented + erradas, summary)
 
 
 def summarize(indicadores: dict, client=None) -> ExecutiveSummary:
@@ -101,7 +108,7 @@ def summarize(indicadores: dict, client=None) -> ExecutiveSummary:
         raise RefusalError("O modelo recusou gerar o resumo.")
     text = next(block.text for block in response.content if block.type == "text")
     summary = ExecutiveSummary.model_validate(json.loads(text))
-    invented = check_numbers(summary, dados)
+    invented = check_numbers(summary, dados) + check_comparisons(summary, indicadores)
     if invented:
         raise NumerosInventados(invented, summary)
     return summary
@@ -115,3 +122,45 @@ def check_numbers(summary: ExecutiveSummary, source: str) -> list[str]:
     source_numbers = {n.replace(",", ".") for n in _NUMBER.findall(source)}
     cited = _NUMBER.findall(" ".join(summary.achados + summary.recomendacoes))
     return [n for n in cited if n.replace(",", ".") not in source_numbers]
+
+
+_MAIOR = re.compile(r"\b(maior(?:es)?|m[aá]xim[oa]s?|mais alt[oa]s?|lider(?:a|am)|l[ií]der(?:es)?)\b", re.I)
+_MENOR = re.compile(r"\b(menor(?:es)?|m[ií]nim[oa]s?|mais baix[oa]s?)\b", re.I)
+_SENTENCE = re.compile(r"(?<=[.;!?])\s+")
+
+
+def _listas_numericas(dados) -> list[list[float]]:
+    """Cada coluna numérica de uma lista de linhas (ranking, problemas) vira uma lista de valores."""
+    achadas: list[list[float]] = []
+    if isinstance(dados, dict):
+        for valor in dados.values():
+            achadas += _listas_numericas(valor)
+    elif isinstance(dados, list):
+        if len(dados) >= 2 and all(isinstance(r, dict) for r in dados):
+            for chave in dados[0]:
+                coluna = [r.get(chave) for r in dados]
+                if all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in coluna):
+                    achadas.append([float(v) for v in coluna])
+        for item in dados:
+            achadas += _listas_numericas(item)
+    return achadas
+
+
+def check_comparisons(summary: ExecutiveSummary, indicadores: dict) -> list[str]:
+    """Frases com "maior"/"menor" cujo número citado não é o maior/menor de nenhuma coluna dos dados.
+
+    Conservador: só avalia números que aparecem em alguma coluna de lista com 2+ linhas; número que só
+    existe em indicador isolado (visão geral) não tem com quem comparar e passa.
+    """
+    colunas = _listas_numericas(indicadores)
+    erradas = []
+    for frase in (f for texto in summary.achados + summary.recomendacoes for f in _SENTENCE.split(texto)):
+        for padrao, escolher, rotulo in ((_MAIOR, max, "maior"), (_MENOR, min, "menor")):
+            if not padrao.search(frase):
+                continue
+            for n in _NUMBER.findall(frase):
+                valor = float(n.replace(",", "."))
+                onde = [c for c in colunas if valor in c]
+                if onde and not any(valor == escolher(c) for c in onde):
+                    erradas.append(f"{rotulo} com {n}")
+    return erradas
