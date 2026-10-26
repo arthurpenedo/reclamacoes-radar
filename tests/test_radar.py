@@ -128,6 +128,21 @@ def test_ollama_gives_up_after_attempts_and_keeps_last_summary():
     assert erro.value.invented == ["999"] and len(calls) == 3
 
 
+def test_ollama_logs_how_many_attempts_each_summary_needed():
+    from reclamacoes_radar.insights import summarize_ollama
+
+    ruim = {"achados": ["Há 999 casos"], "recomendacoes": []}
+    bom = {"achados": ["Cobrança indevida: 110"], "recomendacoes": []}
+    dados = {"top_problemas": [{"reclamacoes": 110}, {"reclamacoes": 67}]}
+    logs = []
+    summarize_ollama(dados, post=_fake_ollama(ruim, bom)[0], log=logs.append)
+    assert logs == ["resumo aprovado na tentativa 2 de 3"]
+    logs.clear()
+    with pytest.raises(NumerosInventados):
+        summarize_ollama(dados, post=_fake_ollama(ruim, ruim, ruim)[0], log=logs.append)
+    assert logs == ["resumo barrado após 3 tentativas"]
+
+
 def test_dashboard_renders_summary_and_blocked_notice(tmp_path):
     from reclamacoes_radar.dashboard import render_dashboard
 

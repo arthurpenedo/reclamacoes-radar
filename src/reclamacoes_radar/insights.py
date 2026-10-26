@@ -8,6 +8,7 @@ O modelo recebe SOMENTE os números já calculados em SQL. Para evitar números 
 import json
 import os
 import re
+import sys
 import urllib.request
 from typing import Callable
 
@@ -52,13 +53,19 @@ def _post_json(url: str, payload: dict) -> dict:
         return json.load(resp)
 
 
+def _log_stderr(mensagem: str) -> None:
+    print(mensagem, file=sys.stderr)
+
+
 def summarize_ollama(indicadores: dict, model: str = OLLAMA_MODEL, url: str = OLLAMA_URL,
-                     post: Callable[[str, dict], dict] = _post_json, tentativas: int = 3) -> ExecutiveSummary:
+                     post: Callable[[str, dict], dict] = _post_json, tentativas: int = 3,
+                     log: Callable[[str], None] = _log_stderr) -> ExecutiveSummary:
     """Resumo com modelo aberto (Ollama): grátis, mas erra mais número que o Claude.
 
     Por isso a trava é mais importante aqui: se o resumo cita número fora dos dados, a rejeição
     volta para o modelo como feedback e ele tenta de novo (até `tentativas`). Se nenhuma tentativa
     passar, levanta `NumerosInventados` com o último resumo, nunca publica número inventado.
+    Cada resumo registra em `log` (stderr, aparece no log do CI) em qual tentativa passou ou que foi barrado.
     """
     dados = json.dumps(indicadores, ensure_ascii=False, default=str)
     messages = [{"role": "system", "content": SYSTEM_PROMPT},
@@ -74,6 +81,7 @@ def summarize_ollama(indicadores: dict, model: str = OLLAMA_MODEL, url: str = OL
         invented = check_numbers(summary, dados)
         erradas = check_comparisons(summary, indicadores)
         if not invented and not erradas:
+            log(f"resumo aprovado na tentativa {tentativa + 1} de {tentativas}")
             return summary
         feedback = []
         if invented:
@@ -83,6 +91,7 @@ def summarize_ollama(indicadores: dict, model: str = OLLAMA_MODEL, url: str = OL
             feedback.append(f"Comparações que os dados não confirmam: {erradas}. Só diga maior/menor "
                             "quando o número for de fato o maior/menor da lista.")
         messages += [{"role": "assistant", "content": text}, {"role": "user", "content": " ".join(feedback)}]
+    log(f"resumo barrado após {tentativas} tentativas")
     raise NumerosInventados(invented + erradas, summary)
 
 

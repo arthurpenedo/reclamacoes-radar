@@ -73,7 +73,7 @@ Modelo pequeno erra mais número, então a trava é mais rígida: se o resumo ci
 
 **Medido no CI** (13/10/2026, `qwen2.5:3b` em CPU, [dashboard](https://arthurpenedo.github.io/reclamacoes-radar/)): os 4 resumos (geral + 3 segmentos) foram publicados, nenhum barrado pela trava; todo número citado bate com os indicadores SQL.
 
-Limite honesto, visto nesse mesmo run: **a trava confere o número, não a frase**. No segmento de comércio eletrônico o modelo escreveu "Loja Delta tem taxa de resposta mais alta (93.2%)", mas o Marketplace Épsilon tem 95,8%. O 93,2% é real; a comparação é falsa. Os testes usam um modelo falso, e quantas tentativas cada resumo precisou não é registrado no log.
+Limite honesto, visto nesse mesmo run: **a trava confere o número, não a frase**. No segmento de comércio eletrônico o modelo escreveu "Loja Delta tem taxa de resposta mais alta (93.2%)", mas o Marketplace Épsilon tem 95,8%. O 93,2% é real; a comparação é falsa. Os testes usam um modelo falso, Cada resumo registra no log do CI em qual tentativa passou na trava (ou que foi barrado).
 
 ## Arquitetura
 
