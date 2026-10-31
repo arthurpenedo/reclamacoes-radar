@@ -214,3 +214,17 @@ def test_ollama_retries_when_superlative_is_wrong():
     post, calls = _fake_ollama(ruim, bom)
     result = summarize_ollama(DADOS_RANKING, post=post)
     assert result.achados == bom["achados"] and "maior com 67" in calls[1]["messages"][-1]["content"]
+
+
+def test_report_table_handles_empty_and_missing_values():
+    from reclamacoes_radar.report import _table
+
+    assert _table([]) == "_Sem dados suficientes._\n"
+    assert "| a | - |" in _table([{"x": 1, "y": 2}, {"x": "a", "y": None}])
+
+
+def test_report_for_segment_without_ranking_says_no_data(mini):
+    # Varejo só tem 1 reclamação, abaixo do mínimo para entrar no ranking de empresas
+    report = build_report(mini, "Varejo")
+    assert "# Radar de reclamações: Varejo" in report
+    assert "_Sem dados suficientes._" in report
