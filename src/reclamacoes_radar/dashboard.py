@@ -132,7 +132,8 @@ def _resumo(resumo) -> str:
         return ""
     if isinstance(resumo, str):
         return f'<div class="card wide"><h2>Resumo executivo (IA)</h2><p class="muted">{escape(resumo)}</p></div>'
-    lis = lambda items: "".join(f"<li>{escape(i)}</li>" for i in items)
+    def lis(items):
+        return "".join(f"<li>{escape(i)}</li>" for i in items)
     return ('<div class="card wide"><h2>Resumo executivo (IA aberta)</h2>'
             f'<h3 class="muted" style="font-size:13px;margin:8px 0 0">Achados</h3><ul>{lis(resumo.achados)}</ul>'
             f'<h3 class="muted" style="font-size:13px;margin:8px 0 0">Recomendações</h3><ul>{lis(resumo.recomendacoes)}</ul>'
