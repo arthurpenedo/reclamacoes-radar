@@ -228,3 +228,20 @@ def test_report_for_segment_without_ranking_says_no_data(mini):
     report = build_report(mini, "Varejo")
     assert "# Radar de reclamações: Varejo" in report
     assert "_Sem dados suficientes._" in report
+
+
+def test_load_csv_data_invalida_vira_nula_e_mantem_a_linha(tmp_path):
+    con = connect()
+    rows = ["SP;32/13/2026;Banco X;Bancos;A;G;Cobrança;S;Finalizada;5;2",
+            "SP;01/03/2026;Banco X;Bancos;A;G;Cobrança;S;Finalizada;5;2"]
+    assert load_csv(con, write_csv(tmp_path, rows)) == 2
+    assert con.execute("SELECT count(*) FROM reclamacoes WHERE data_abertura IS NULL").fetchone()[0] == 1
+
+
+def test_cli_carregar_arquivo_inexistente_devolve_erro(tmp_path, capsys):
+    from reclamacoes_radar.cli import main
+
+    codigo = main(["carregar", str(tmp_path / "nao_existe.csv"), "--db", str(tmp_path / "r.duckdb")])
+    assert codigo == 1
+    assert "não encontrado" in capsys.readouterr().err
+    assert not (tmp_path / "r.duckdb").exists()

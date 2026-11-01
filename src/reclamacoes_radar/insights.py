@@ -10,7 +10,7 @@ import os
 import re
 import sys
 import urllib.request
-from typing import Callable
+from collections.abc import Callable
 
 from pydantic import BaseModel, ConfigDict
 
@@ -133,8 +133,8 @@ def check_numbers(summary: ExecutiveSummary, source: str) -> list[str]:
     return [n for n in cited if n.replace(",", ".") not in source_numbers]
 
 
-_MAIOR = re.compile(r"\b(maior(?:es)?|m[aá]xim[oa]s?|mais alt[oa]s?|lider(?:a|am)|l[ií]der(?:es)?)\b", re.I)
-_MENOR = re.compile(r"\b(menor(?:es)?|m[ií]nim[oa]s?|mais baix[oa]s?)\b", re.I)
+_MAIOR = re.compile(r"\b(maior(?:es)?|m[aá]xim[oa]s?|mais alt[oa]s?|lider(?:a|am)|l[ií]der(?:es)?)\b", re.IGNORECASE)
+_MENOR = re.compile(r"\b(menor(?:es)?|m[ií]nim[oa]s?|mais baix[oa]s?)\b", re.IGNORECASE)
 _SENTENCE = re.compile(r"(?<=[.;!?])\s+")
 
 

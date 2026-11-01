@@ -43,6 +43,9 @@ def main(argv: list[str] | None = None) -> int:
     p_dash.add_argument("--fonte", help="texto sobre a origem dos dados, exibido no cabeçalho")
 
     args = parser.parse_args(argv)
+    if args.cmd == "carregar" and not args.csv.is_file():
+        print(f"Arquivo não encontrado: {args.csv}", file=sys.stderr)
+        return 1
     con = connect(args.db)
 
     if args.cmd == "carregar":
