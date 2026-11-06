@@ -118,4 +118,4 @@ def segmentos(con: duckdb.DuckDBPyConnection) -> list[str]:
 
 def _rows(cursor: duckdb.DuckDBPyConnection) -> list[dict]:
     cols = [d[0] for d in cursor.description]
-    return [dict(zip(cols, row)) for row in cursor.fetchall()]
+    return [dict(zip(cols, row, strict=True)) for row in cursor.fetchall()]
