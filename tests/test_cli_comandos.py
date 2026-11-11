@@ -1,0 +1,52 @@
+import json
+from pathlib import Path
+
+import pytest
+
+from reclamacoes_radar import cli, insights
+
+AMOSTRA = Path(__file__).resolve().parents[1] / "data" / "amostra_sintetica.csv"
+
+
+@pytest.fixture
+def db(tmp_path):
+    caminho = tmp_path / "r.duckdb"
+    assert cli.main(["carregar", str(AMOSTRA), "--db", str(caminho)]) == 0
+    return caminho
+
+
+class _Resumo:
+    def model_dump(self):
+        return {"titulo": "resumo falso"}
+
+
+def test_relatorio_imprime_texto(db, capsys):
+    assert cli.main(["relatorio", "--db", str(db)]) == 0
+    assert capsys.readouterr().out.strip()
+
+
+def test_resumo_ollama_imprime_json(db, monkeypatch, capsys):
+    vistos = []
+    monkeypatch.setattr(insights, "summarize_ollama", lambda dados: vistos.append(set(dados)) or _Resumo())
+    assert cli.main(["resumo", "--db", str(db), "--modelo", "ollama"]) == 0
+    assert json.loads(capsys.readouterr().out) == {"titulo": "resumo falso"}
+    assert vistos == [{"visao_geral", "ranking_empresas", "top_problemas"}]
+
+
+def test_resumo_claude_e_o_padrao(db, monkeypatch, capsys):
+    monkeypatch.setattr(insights, "summarize", lambda dados: _Resumo())
+    assert cli.main(["resumo", "--db", str(db)]) == 0
+    assert "resumo falso" in capsys.readouterr().out
+
+
+def test_dashboard_com_resumo_barrado_vira_aviso(db, tmp_path, monkeypatch):
+    def barra(dados):
+        raise insights.NumerosInventados(["999"], None)
+
+    monkeypatch.setattr(insights, "summarize_ollama", barra)
+    saida = tmp_path / "d.html"
+    assert cli.main(["dashboard", "--db", str(db), "--saida", str(saida), "--resumo", "ollama",
+                     "--fonte", "Dados de teste"]) == 0
+    html = saida.read_text(encoding="utf-8")
+    assert "Resumo barrado pela trava de números (citou 999" in html
+    assert "Dados de teste" in html
