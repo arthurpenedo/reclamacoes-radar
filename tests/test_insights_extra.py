@@ -26,3 +26,22 @@ def test_summarize_recusa_levanta_refusal_error():
     client = SimpleNamespace(beta=SimpleNamespace(messages=SimpleNamespace(create=create)))
     with pytest.raises(insights.RefusalError):
         insights.summarize({"visao_geral": {}}, client=client)
+
+
+def test_summarize_sem_cliente_cria_o_do_sdk_anthropic(monkeypatch):
+    import sys
+
+    criados = []
+
+    def create(**kwargs):
+        return SimpleNamespace(stop_reason="refusal", content=[])
+
+    class FakeAnthropic:
+        def __init__(self):
+            criados.append(self)
+            self.beta = SimpleNamespace(messages=SimpleNamespace(create=create))
+
+    monkeypatch.setitem(sys.modules, "anthropic", SimpleNamespace(Anthropic=FakeAnthropic))
+    with pytest.raises(insights.RefusalError):
+        insights.summarize({"visao_geral": {}})
+    assert len(criados) == 1
