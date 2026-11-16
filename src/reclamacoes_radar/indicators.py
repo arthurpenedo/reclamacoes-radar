@@ -32,7 +32,7 @@ def ranking_empresas(con: duckdb.DuckDBPyConnection, segmento: str | None = None
         {where}
         GROUP BY nome_fantasia
         HAVING count(*) >= {MIN_RECLAMACOES}
-        ORDER BY reclamacoes DESC
+        ORDER BY reclamacoes DESC, empresa  -- empate: ordem alfabética, para o ranking não mudar entre execuções
         LIMIT {int(limite)}
     """
     return _rows(con.execute(sql, params))
@@ -44,7 +44,7 @@ def top_problemas(con: duckdb.DuckDBPyConnection, segmento: str | None = None, l
         SELECT problema, count(*) AS reclamacoes,
                round(100.0 * count(*) / sum(count(*)) OVER (), 1) AS percentual
         FROM reclamacoes {where}
-        GROUP BY problema ORDER BY reclamacoes DESC LIMIT {int(limite)}
+        GROUP BY problema ORDER BY reclamacoes DESC, problema LIMIT {int(limite)}
     """
     return _rows(con.execute(sql, params))
 
@@ -106,7 +106,7 @@ def comparativo_segmento(con: duckdb.DuckDBPyConnection, segmento: str) -> list[
                round(emp.tempo_medio_dias, 1) AS tempo_medio_dias,
                round(emp.tempo_medio_dias - seg.tempo_medio_dias, 1) AS delta_tempo
         FROM emp, seg
-        ORDER BY emp.reclamacoes DESC
+        ORDER BY emp.reclamacoes DESC, emp.empresa
     """
     return _rows(con.execute(sql, [segmento]))
 

@@ -245,3 +245,13 @@ def test_cli_carregar_arquivo_inexistente_devolve_erro(tmp_path, capsys):
     assert codigo == 1
     assert "não encontrado" in capsys.readouterr().err
     assert not (tmp_path / "r.duckdb").exists()
+
+
+def test_empates_nos_rankings_seguem_ordem_alfabetica(tmp_path):
+    rows = [f"SP;0{d}/03/2026;{empresa};Bancos;A;G;{problema};S;Finalizada avaliada - Resolvida;5;2"
+            for empresa, problema in (("Zeta", "Taxa"), ("Mega", "Cartão"), ("Alfa", "Boleto")) for d in range(1, 6)]
+    con = connect()
+    load_csv(con, write_csv(tmp_path, rows))
+    assert [r["empresa"] for r in ind.ranking_empresas(con)] == ["Alfa", "Mega", "Zeta"]
+    assert [r["problema"] for r in ind.top_problemas(con)] == ["Boleto", "Cartão", "Taxa"]
+    assert [r["empresa"] for r in ind.comparativo_segmento(con, "Bancos")] == ["Alfa", "Mega", "Zeta"]
