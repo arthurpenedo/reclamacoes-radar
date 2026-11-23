@@ -55,6 +55,7 @@ def main(argv: list[str] | None = None) -> int:
         kwargs = {"fonte": args.fonte} if args.fonte else {}
         if args.resumo:
             kwargs["resumos"] = _resumos_ollama(con)
+        args.saida.parent.mkdir(parents=True, exist_ok=True)
         args.saida.write_text(render_dashboard(con, **kwargs), encoding="utf-8")
         print(f"Dashboard salvo em {args.saida}")
     elif args.cmd == "relatorio":

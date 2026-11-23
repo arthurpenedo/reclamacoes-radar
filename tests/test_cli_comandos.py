@@ -50,3 +50,9 @@ def test_dashboard_com_resumo_barrado_vira_aviso(db, tmp_path, monkeypatch):
     html = saida.read_text(encoding="utf-8")
     assert "Resumo barrado pela trava de números (citou 999" in html
     assert "Dados de teste" in html
+
+
+def test_dashboard_cria_a_pasta_da_saida(db, tmp_path):
+    saida = tmp_path / "site" / "novo" / "index.html"
+    assert cli.main(["dashboard", "--db", str(db), "--saida", str(saida)]) == 0
+    assert saida.is_file()
