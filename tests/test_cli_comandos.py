@@ -56,3 +56,11 @@ def test_dashboard_cria_a_pasta_da_saida(db, tmp_path):
     saida = tmp_path / "site" / "novo" / "index.html"
     assert cli.main(["dashboard", "--db", str(db), "--saida", str(saida)]) == 0
     assert saida.is_file()
+
+
+def test_comandos_de_consulta_sem_base_devolvem_2_e_nao_criam_arquivo(tmp_path, capsys):
+    db = tmp_path / "nao.duckdb"
+    for cmd in (["relatorio"], ["resumo"], ["dashboard", "--saida", str(tmp_path / "d.html")]):
+        assert cli.main([*cmd, "--db", str(db)]) == 2
+        assert "Base não encontrada" in capsys.readouterr().err
+    assert not db.exists() and not (tmp_path / "d.html").exists()

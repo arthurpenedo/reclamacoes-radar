@@ -46,6 +46,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "carregar" and not args.csv.is_file():
         print(f"Arquivo não encontrado: {args.csv}", file=sys.stderr)
         return 1
+    if args.cmd != "carregar" and not args.db.is_file():
+        print(f"Base não encontrada: {args.db}. Rode `reclamacoes-radar carregar` antes.", file=sys.stderr)
+        return 2
     con = connect(args.db)
 
     if args.cmd == "carregar":
