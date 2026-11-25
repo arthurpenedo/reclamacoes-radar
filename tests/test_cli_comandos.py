@@ -65,6 +65,11 @@ def test_carregar_csv_ruim_devolve_2_sem_traceback(tmp_path, capsys, conteudo, e
     assert "Não consegui carregar" in capsys.readouterr().err
 
 
+def test_dashboard_com_saida_apontando_para_pasta_devolve_2(db, tmp_path, capsys):
+    assert cli.main(["dashboard", "--db", str(db), "--saida", str(tmp_path)]) == 2
+    assert "pasta" in capsys.readouterr().err
+
+
 def test_dashboard_cria_a_pasta_da_saida(db, tmp_path):
     saida = tmp_path / "site" / "novo" / "index.html"
     assert cli.main(["dashboard", "--db", str(db), "--saida", str(saida)]) == 0

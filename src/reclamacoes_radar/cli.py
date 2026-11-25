@@ -51,6 +51,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd != "carregar" and not args.db.is_file():
         print(f"Base não encontrada: {args.db}. Rode `reclamacoes-radar carregar` antes.", file=sys.stderr)
         return 2
+    if args.cmd == "dashboard" and args.saida.is_dir():
+        print(f"--saida aponta para uma pasta ({args.saida}); informe um arquivo .html.", file=sys.stderr)
+        return 2
     if args.cmd == "carregar":
         try:
             con = connect(args.db)
