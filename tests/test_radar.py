@@ -242,8 +242,16 @@ def test_cli_carregar_arquivo_inexistente_devolve_erro(tmp_path, capsys):
     from reclamacoes_radar.cli import main
 
     codigo = main(["carregar", str(tmp_path / "nao_existe.csv"), "--db", str(tmp_path / "r.duckdb")])
-    assert codigo == 1
+    assert codigo == 2
     assert "não encontrado" in capsys.readouterr().err
+    assert not (tmp_path / "r.duckdb").exists()
+
+
+def test_cli_carregar_pasta_no_lugar_do_csv_diz_que_e_pasta(tmp_path, capsys):
+    from reclamacoes_radar.cli import main
+
+    assert main(["carregar", str(tmp_path), "--db", str(tmp_path / "r.duckdb")]) == 2
+    assert "é uma pasta" in capsys.readouterr().err
     assert not (tmp_path / "r.duckdb").exists()
 
 

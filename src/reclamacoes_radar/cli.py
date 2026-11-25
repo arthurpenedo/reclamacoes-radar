@@ -46,8 +46,9 @@ def main(argv: list[str] | None = None) -> int:
 
     args = parser.parse_args(argv)
     if args.cmd == "carregar" and not args.csv.is_file():
-        print(f"Arquivo não encontrado: {args.csv}", file=sys.stderr)
-        return 1
+        motivo = "é uma pasta, informe o arquivo CSV" if args.csv.is_dir() else "não encontrado"
+        print(f"Arquivo {motivo}: {args.csv}", file=sys.stderr)
+        return 2
     if args.cmd != "carregar" and not args.db.is_file():
         print(f"Base não encontrada: {args.db}. Rode `reclamacoes-radar carregar` antes.", file=sys.stderr)
         return 2
