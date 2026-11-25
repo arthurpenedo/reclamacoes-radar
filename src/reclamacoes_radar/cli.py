@@ -11,6 +11,8 @@ import json
 import sys
 from pathlib import Path
 
+import duckdb
+
 from . import indicators as ind
 from .dashboard import render_dashboard
 from .ingest import connect, load_csv
@@ -49,12 +51,17 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd != "carregar" and not args.db.is_file():
         print(f"Base não encontrada: {args.db}. Rode `reclamacoes-radar carregar` antes.", file=sys.stderr)
         return 2
-    con = connect(args.db)
-
     if args.cmd == "carregar":
-        total = load_csv(con, args.csv, encoding=args.encoding)
+        try:
+            con = connect(args.db)
+            total = load_csv(con, args.csv, encoding=args.encoding)
+        except (ValueError, duckdb.Error) as erro:
+            print(f"Não consegui carregar {args.csv}: {str(erro).splitlines()[0]}", file=sys.stderr)
+            return 2
         print(f"{total} reclamações na base {args.db}")
-    elif args.cmd == "dashboard":
+        return 0
+    con = connect(args.db)
+    if args.cmd == "dashboard":
         kwargs = {"fonte": args.fonte} if args.fonte else {}
         if args.resumo:
             kwargs["resumos"] = _resumos_ollama(con)

@@ -52,6 +52,19 @@ def test_dashboard_com_resumo_barrado_vira_aviso(db, tmp_path, monkeypatch):
     assert "Dados de teste" in html
 
 
+@pytest.mark.parametrize("conteudo, encoding", [
+    (b"", "utf-8"),
+    (b"a;b\n", "utf-8"),
+    ("Região;Empresa\n".encode("latin-1"), "utf-8"),
+    (b"a;b\n1;2\n", "xyz"),
+])
+def test_carregar_csv_ruim_devolve_2_sem_traceback(tmp_path, capsys, conteudo, encoding):
+    csv = tmp_path / "ruim.csv"
+    csv.write_bytes(conteudo)
+    assert cli.main(["carregar", str(csv), "--db", str(tmp_path / "r.duckdb"), "--encoding", encoding]) == 2
+    assert "Não consegui carregar" in capsys.readouterr().err
+
+
 def test_dashboard_cria_a_pasta_da_saida(db, tmp_path):
     saida = tmp_path / "site" / "novo" / "index.html"
     assert cli.main(["dashboard", "--db", str(db), "--saida", str(saida)]) == 0
